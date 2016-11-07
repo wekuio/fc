@@ -10,7 +10,6 @@
 #include <boost/thread/mutex.hpp>
 #define COLOR_CONSOLE 1
 #include "console_defines.h"
-#include <fc/io/stdio.hpp>
 #include <fc/exception/exception.hpp>
 #include <iomanip>
 #include <sstream>

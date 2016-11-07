@@ -1,6 +1,5 @@
 #pragma once
 #include <fc/utility.hpp>
-#include <fc/shared_ptr.hpp>
 #include <memory>
 
 namespace fc {
@@ -16,7 +15,6 @@ namespace fc {
   class udp_socket {
     public:
       udp_socket();
-      udp_socket( const udp_socket& s );
       ~udp_socket();
 
       void   open();
@@ -36,8 +34,8 @@ namespace fc {
       fc::ip::endpoint local_endpoint()const;
 
     private:
-      class                impl;
-      fc::shared_ptr<impl> my;
+      class                 impl;
+      std::unique_ptr<impl> my;
   };
 
 }

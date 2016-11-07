@@ -3,9 +3,7 @@
 #include <fc/variant.hpp>
 #include <fc/time.hpp>
 #include <fc/thread/thread.hpp>
-#include <fc/thread/task.hpp>
 #include <fc/filesystem.hpp>
-#include <fc/io/stdio.hpp>
 #include <fc/io/json.hpp>
 
 namespace fc
@@ -54,8 +52,8 @@ namespace fc
       my->method      = method;
       my->timestamp   = time_point::now();
       my->thread_name = fc::thread::current().name();
-      const char* current_task_desc = fc::thread::current().current_task_desc();
-      my->task_name   = current_task_desc ? current_task_desc : "?unnamed?";
+      //const char* current_task_desc = fc::thread::current().current_task_desc();
+      //my->task_name   = current_task_desc ? current_task_desc : "?unnamed?";
    }
 
    log_context::log_context( const variant& v )

@@ -4,20 +4,22 @@
 #include <iostream>
 #include <string.h>
 //#include <fc/log.hpp>
-#include <fc/thread/mutex.hpp>
 #include <fc/thread/scoped_lock.hpp>
 #include <string>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread/mutex.hpp>
 #include <fc/io/stdio.hpp>
 #include <fc/log/logger.hpp>
+#include <fc/exception/exception.hpp>
 
 namespace fc {
+  
+  using boost::fibers::promise;
   
   struct cin_buffer {
     cin_buffer():eof(false),write_pos(0),read_pos(0),cinthread("cin"){
     
-      cinthread.async( [=](){read();}, "cin_buffer::read" );
+      cinthread.async( [=](){read();} );
     }
 
     void     read() {
@@ -25,40 +27,40 @@ namespace fc {
       std::cin.read(&c,1);
       while( !std::cin.eof() ) {
         while( write_pos - read_pos > 0xfffff ) {
-          fc::promise<void>::ptr wr( new fc::promise<void>("cin_buffer::write_ready") );
-          write_ready = wr;
+          auto pp = std::make_shared<promise<void>>();
+          write_ready = pp;
           if( write_pos - read_pos <= 0xfffff ) {
-            wr->wait();
+            pp->get_future().get();
           }
           write_ready.reset();
         }
         buf[write_pos&0xfffff] = c;
         ++write_pos;
 
-        fc::promise<void>::ptr tmp;
+        std::shared_ptr<promise<void>> tmp;
         { // copy read_ready because it is accessed from multiple threads
           fc::scoped_lock<boost::mutex> lock( read_ready_mutex ); 
           tmp = read_ready; 
         }
 
-        if( tmp && !tmp->ready() ) { 
+        if( tmp /*&& !tmp->ready()*/ ) { 
           tmp->set_value(); 
         }
         std::cin.read(&c,1);
       }
       eof = true;
-      fc::promise<void>::ptr tmp;
+      std::shared_ptr<promise<void>> tmp;
       {  // copy read_ready because it is accessed from multiple threads
         fc::scoped_lock<boost::mutex> lock( read_ready_mutex ); 
         tmp = read_ready;
       }
-      if( tmp && !tmp->ready() ) { 
-        tmp->set_exception( exception_ptr( new eof_exception() )); 
+      if( tmp /*&& !tmp->ready()*/ ) { 
+        tmp->set_exception( std::make_exception_ptr(eof_exception()) ); 
       }
     }
     boost::mutex              read_ready_mutex;
-    fc::promise<void>::ptr read_ready;
-    fc::promise<void>::ptr write_ready;
+    std::shared_ptr<promise<void> > read_ready;
+    std::shared_ptr<promise<void> > write_ready;
     
     volatile bool     eof;
     
@@ -77,7 +79,7 @@ namespace fc {
   fc::thread& cin_thread() { static fc::thread i("cin"); return i; }
 
   fc::istream& getline( fc::istream& i, fc::string& s, char delim  ) {
-    fc::stringstream ss; 
+    std::stringstream ss; 
     char c;
     i.read( &c, 1 );
     while( true ) {
@@ -139,13 +141,13 @@ namespace fc {
     do {
         while( !b.eof &&  (b.write_pos - b.read_pos)==0 ){ 
            // wait for more... 
-           fc::promise<void>::ptr rr( new fc::promise<void>("cin_buffer::read_ready") );
+           std::shared_ptr<promise<void>> rr = std::make_shared<promise<void>>();
            {  // copy read_ready because it is accessed from multiple threads
              fc::scoped_lock<boost::mutex> lock( b.read_ready_mutex ); 
              b.read_ready = rr;
            }
            if( b.write_pos - b.read_pos == 0 ) {
-             rr->wait();
+             rr->get_future().get();
            }
          //  b.read_ready.reset();
            {  // copy read_ready because it is accessed from multiple threads
@@ -159,7 +161,7 @@ namespace fc {
         len -= r;
 
         auto tmp = b.write_ready; // copy write_writey because it is accessed from multiple thwrites
-        if( tmp && !tmp->ready() ) { 
+        if( tmp /*&& !tmp->ready()*/ ) { 
           tmp->set_value(); 
         }
     } while( len > 0 && !b.eof );

@@ -1,6 +1,5 @@
 #include <fc/log/logger_config.hpp>
 #include <fc/log/appender.hpp>
-#include <fc/io/json.hpp>
 #include <fc/filesystem.hpp>
 #include <unordered_map>
 #include <string>
@@ -8,7 +7,8 @@
 #include <fc/log/file_appender.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/exception/exception.hpp>
-#include <fc/io/stdio.hpp>
+
+#include <iostream>
 
 namespace fc {
    extern std::unordered_map<std::string,logger>& get_logger_map();
@@ -17,13 +17,13 @@ namespace fc {
 
    void configure_logging( const fc::path& lc )
    {
-      configure_logging( fc::json::from_file<logging_config>(lc) );
+   //   configure_logging( fc::json::from_file<logging_config>(lc) );
    }
    bool configure_logging( const logging_config& cfg )
    {
       try {
       static bool reg_console_appender = appender::register_appender<console_appender>( "console" );
-      static bool reg_file_appender = appender::register_appender<file_appender>( "file" );
+      static bool reg_file_appender = false;//appender::register_appender<file_appender>( "file" );
       get_logger_map().clear();
       get_appender_map().clear();
 
@@ -51,7 +51,7 @@ namespace fc {
       return reg_console_appender || reg_file_appender;
       } catch ( exception& e )
       {
-         fc::cerr<<e.to_detail_string()<<"\n";
+         std::cerr<<e.to_detail_string()<<"\n";
       }
       return false;
    }

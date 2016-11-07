@@ -5,13 +5,12 @@
 
 
 namespace fc {
+  using boost::fibers::promise;
   
-  class udp_socket::impl : public fc::retainable {
+  class udp_socket::impl {
     public:
       impl():_sock( fc::asio::default_io_service() ){}
-      ~impl(){
-      //  _sock.cancel();
-      }
+      ~impl(){ }
 
       boost::asio::ip::udp::socket _sock;
   };
@@ -25,11 +24,6 @@ namespace fc {
 
   udp_socket::udp_socket()
   :my( new impl() ) 
-  {
-  }
-
-  udp_socket::udp_socket( const udp_socket& s )
-  :my(s.my)
   {
   }
 
@@ -56,11 +50,11 @@ namespace fc {
         throw;
     }
 
-    promise<size_t>::ptr completion_promise(new promise<size_t>("udp_socket::send_to"));
+    auto completion_promise = std::make_shared<promise<size_t>>();
     my->_sock.async_send_to( boost::asio::buffer(buffer, length), to_asio_ep(to), 
                              asio::detail::read_write_handler(completion_promise) );
 
-    return completion_promise->wait();
+    return completion_promise->get_future().get();
   }
 
   size_t udp_socket::send_to( const std::shared_ptr<const char>& buffer, size_t length, 
@@ -76,11 +70,11 @@ namespace fc {
         throw;
     }
 
-    promise<size_t>::ptr completion_promise(new promise<size_t>("udp_socket::send_to"));
+    auto completion_promise = std::make_shared<promise<size_t>>();
     my->_sock.async_send_to( boost::asio::buffer(buffer.get(), length), to_asio_ep(to), 
                              asio::detail::read_write_handler_with_buffer(completion_promise, buffer) );
 
-    return completion_promise->wait();
+    return completion_promise->get_future().get();
   }
 
   void udp_socket::open() {
@@ -111,11 +105,11 @@ namespace fc {
     }
 
     boost::asio::ip::udp::endpoint boost_from_endpoint;
-    promise<size_t>::ptr completion_promise(new promise<size_t>("udp_socket::receive_from"));
+    auto completion_promise = std::make_shared<promise<size_t>>();
     my->_sock.async_receive_from( boost::asio::buffer(receive_buffer.get(), receive_buffer_length), 
                                   boost_from_endpoint,
                                   asio::detail::read_write_handler_with_buffer(completion_promise, receive_buffer) );
-    size_t bytes_read = completion_promise->wait();
+    size_t bytes_read = completion_promise->get_future().get();
     from = to_fc_ep(boost_from_endpoint);
     return bytes_read;
   }
@@ -137,16 +131,15 @@ namespace fc {
     }
 
     boost::asio::ip::udp::endpoint boost_from_endpoint;
-    promise<size_t>::ptr completion_promise(new promise<size_t>("udp_socket::receive_from"));
+    auto completion_promise = std::make_shared<promise<size_t>>();
     my->_sock.async_receive_from( boost::asio::buffer(receive_buffer, receive_buffer_length), boost_from_endpoint,
                                   asio::detail::read_write_handler(completion_promise) );
-    size_t bytes_read = completion_promise->wait();
+    size_t bytes_read = completion_promise->get_future().get();
     from = to_fc_ep(boost_from_endpoint);
     return bytes_read;
   }
 
   void   udp_socket::close() {
-    //my->_sock.cancel(); 
     my->_sock.close();
   }
 

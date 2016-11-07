@@ -1,14 +1,12 @@
 #include <fc/variant.hpp>
 #include <fc/variant_object.hpp>
 #include <fc/exception/exception.hpp>
-#include <fc/io/sstream.hpp>
-#include <fc/io/json.hpp>
-#include <fc/io/stdio.hpp>
 #include <string.h>
 #include <fc/crypto/base64.hpp>
 #include <fc/crypto/hex.hpp>
 #include <boost/scoped_array.hpp>
 #include <fc/reflect/variant.hpp>
+#include <fc/io/json.hpp>
 #include <algorithm>
 
 namespace fc
@@ -671,7 +669,7 @@ void from_variant( const variant& var,  std::vector<char>& vo )
 
 string      format_string( const string& format, const variant_object& args )
 {
-   stringstream ss;
+   std::stringstream ss;
    size_t prev = 0;
    auto next = format.find( '$' );
    while( prev != size_t(string::npos) && prev < size_t(format.size()) ) 

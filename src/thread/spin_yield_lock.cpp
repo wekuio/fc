@@ -3,9 +3,9 @@
 #include <boost/atomic.hpp>
 #include <boost/memory_order.hpp>
 #include <new>
+#include <boost/fiber/all.hpp>
 
 namespace fc {
-  void yield();
 
   #define define_self  boost::atomic<int>* self = (boost::atomic<int>*)&_lock
 
@@ -30,7 +30,7 @@ namespace fc {
      while( abs_time > time_point::now() ) {
         if( try_lock() ) 
            return true;
-        yield(); 
+        boost::this_fiber::yield(); 
      }
      return false;
   }
@@ -38,7 +38,7 @@ namespace fc {
   void spin_yield_lock::lock() {
     define_self;
     while( self->exchange(locked, boost::memory_order_acquire)==locked) {
-      yield(); 
+       boost::this_fiber::yield(); 
     }
   }
 

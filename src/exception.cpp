@@ -1,6 +1,5 @@
 #include <fc/exception/exception.hpp>
 #include <boost/exception/all.hpp>
-#include <fc/io/sstream.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/json.hpp>
 
@@ -158,12 +157,12 @@ namespace fc
     */
    string exception::to_detail_string( log_level ll  )const
    {
-      fc::stringstream ss;
+      std::stringstream ss;
       ss << variant(my->_code).as_string() <<" " << my->_name << ": " <<my->_what<<"\n";
       for( auto itr = my->_elog.begin(); itr != my->_elog.end();  )
       {
          ss << itr->get_message() <<"\n"; //fc::format_string( itr->get_format(), itr->get_data() ) <<"\n";
-         ss << "    " << json::to_string( itr->get_data() )<<"\n";
+         ss << "    " << json::to_string( itr->get_data() ) <<"\n";   
          ss << "    " << itr->get_context().to_string();
          ++itr;
          if( itr != my->_elog.end() ) ss<<"\n";
@@ -176,7 +175,7 @@ namespace fc
     */
    string exception::to_string( log_level ll   )const
    {
-      fc::stringstream ss;
+      std::stringstream ss;
       ss << what() << " (" << variant(my->_code).as_string() <<")\n";
       for( auto itr = my->_elog.begin(); itr != my->_elog.end(); ++itr )
       {
@@ -256,9 +255,11 @@ namespace fc
          ("source_lineno", lineno)
          ("expr", expr)
          ;
+      /* TODO: restore this later
       std::cout
          << "FC_ASSERT triggered:  "
          << fc::json::to_string( assert_trip_info ) << "\n";
+         */
       return;
    }
 

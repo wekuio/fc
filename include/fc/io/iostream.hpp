@@ -101,3 +101,4 @@ namespace fc {
   istream& operator>>( istream& o, int8_t& v );
   istream& operator>>( istream& o, uint8_t& v );
 }
+

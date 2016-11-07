@@ -34,7 +34,7 @@ endif()
 SET (ORIGINAL_LIB_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 SET(BOOST_COMPONENTS)
-LIST(APPEND BOOST_COMPONENTS thread date_time system filesystem program_options signals serialization chrono unit_test_framework context locale iostreams)
+LIST(APPEND BOOST_COMPONENTS thread fiber date_time system filesystem program_options signals serialization chrono unit_test_framework context locale iostreams)
 SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
 
 IF( ECC_IMPL STREQUAL openssl )
@@ -167,13 +167,13 @@ set( fc_sources
      src/exception.cpp
      src/variant_object.cpp
      src/thread/thread.cpp
-     src/thread/thread_specific.cpp
-     src/thread/future.cpp
-     src/thread/task.cpp
+#     src/thread/thread_specific.cpp
+#     src/thread/future.cpp
+#     src/thread/task.cpp
      src/thread/spin_lock.cpp
      src/thread/spin_yield_lock.cpp
-     src/thread/mutex.cpp
-     src/thread/non_preemptable_scope_check.cpp
+#     src/thread/mutex.cpp
+#     src/thread/non_preemptable_scope_check.cpp
      src/asio.cpp
      src/string.cpp
      src/shared_ptr.cpp
@@ -181,30 +181,30 @@ set( fc_sources
      src/utf8.cpp
      src/io/iostream.cpp
      src/io/datastream.cpp
-     src/io/buffered_iostream.cpp
-     src/io/fstream.cpp
-     src/io/sstream.cpp
+#     src/io/buffered_iostream.cpp
+#     src/io/fstream.cpp
+#     src/io/sstream.cpp
      src/io/json.cpp
      src/io/varint.cpp
-     src/io/console.cpp
+#     src/io/console.cpp
      src/filesystem.cpp
-     src/interprocess/process.cpp
-     src/interprocess/signals.cpp
+#     src/interprocess/process.cpp
+#     src/interprocess/signals.cpp
      src/interprocess/file_mapping.cpp
      src/interprocess/mmap_struct.cpp
      src/interprocess/file_mutex.cpp
-     src/rpc/cli.cpp
-     src/rpc/http_api.cpp
-     src/rpc/json_connection.cpp
+#     src/rpc/cli.cpp
+#     src/rpc/http_api.cpp
+#     src/rpc/json_connection.cpp
      src/rpc/state.cpp
      src/rpc/bstate.cpp
-     src/rpc/websocket_api.cpp
+#     src/rpc/websocket_api.cpp
      src/log/log_message.cpp
      src/log/logger.cpp
      src/log/appender.cpp
      src/log/console_appender.cpp
-     src/log/file_appender.cpp
-     src/log/gelf_appender.cpp
+#     src/log/file_appender.cpp
+#     src/log/gelf_appender.cpp
      src/log/logger_config.cpp
      src/crypto/_digest_common.cpp
      src/crypto/openssl.cpp
@@ -230,16 +230,16 @@ set( fc_sources
      src/crypto/rand.cpp
      src/network/tcp_socket.cpp
      src/network/udp_socket.cpp
-     src/network/udt_socket.cpp
-     src/network/http/http_connection.cpp
-     src/network/http/http_server.cpp
+#     src/network/udt_socket.cpp
+#     src/network/http/http_connection.cpp
+#     src/network/http/http_server.cpp
      src/network/http/websocket.cpp
      src/network/ntp.cpp
      src/network/ip.cpp
-     src/network/rate_limiting.cpp
+#     src/network/rate_limiting.cpp
      src/network/resolve.cpp
      src/network/url.cpp
-     src/network/gntp.cpp
+#     src/network/gntp.cpp
      src/compress/smaz.cpp
      src/compress/zlib.cpp
      vendor/cyoencode-1.0.2/src/CyoDecode.c

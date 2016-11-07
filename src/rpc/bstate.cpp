@@ -1,6 +1,7 @@
 #include <fc/rpc/bstate.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/reflect/variant.hpp>
+#include <fc/exception/exception.hpp>
 
 namespace fc { namespace rpc {
 bstate::~bstate()
@@ -35,7 +36,7 @@ void  bstate::handle_reply( const bresponse& bresponse )
       await->second->set_value( *bresponse.result );
    else if( bresponse.error )
    {
-      await->second->set_exception( exception_ptr(new FC_EXCEPTION( exception, "${error}", ("error",bresponse.error->message)("data",bresponse) ) ) );
+      await->second->set_exception( std::make_exception_ptr( FC_EXCEPTION( exception, "${error}", ("error",bresponse.error->message)("data",bresponse) ) ) );
    }
    else
       await->second->set_value( params_type() );
@@ -45,19 +46,20 @@ void  bstate::handle_reply( const bresponse& bresponse )
 brequest bstate::start_remote_call( const string& method_name, params_type args )
 {
    brequest brequest{ _next_id++, method_name, std::move(args) };
-   _awaiting[*brequest.id] = fc::promise<result_type>::ptr( new fc::promise<result_type>("json_connection::async_call") );
+   _awaiting[*brequest.id].reset( new boost::fibers::promise<result_type>() );
    return brequest;
 }
 result_type bstate::wait_for_response( uint64_t request_id )
 {
    auto itr = _awaiting.find(request_id);
    FC_ASSERT( itr != _awaiting.end() );
-   return fc::future<result_type>( itr->second ).wait();
+   auto fut = itr->second->get_future();
+   return fut.get();
 }
 void bstate::close()
 {
-   for( auto item : _awaiting )
-      item.second->set_exception( fc::exception_ptr(new FC_EXCEPTION( eof_exception, "connection closed" )) );
+   for( auto& item : _awaiting )
+      item.second->set_exception( std::make_exception_ptr(  FC_EXCEPTION( eof_exception, "connection closed" )) );
    _awaiting.clear();
 }
 void bstate::on_unhandled( const std::function<result_type(const string&, const params_type&)>& unhandled )

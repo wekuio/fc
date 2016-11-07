@@ -357,8 +357,6 @@ namespace fc {
   void udt_server::accept( udt_socket& s )
   { try {
       FC_ASSERT( !s.is_open() );
-      int namelen;
-      sockaddr_in their_addr;
 
 
       while( s._udt_socket_id == UDT::INVALID_SOCK )

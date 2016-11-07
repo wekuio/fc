@@ -1,129 +1,123 @@
 #pragma once
-#include <fc/thread/future.hpp>
-#include <fc/thread/priority.hpp>
-#include <fc/aligned.hpp>
-#include <fc/fwd.hpp>
+#include <boost/fiber/all.hpp>
+#include <fc/time.hpp>
+#include <fc/exception/exception.hpp>
 
 namespace fc {
-  struct context;
-  class spin_lock;
-
-   namespace detail
-   {
-      struct specific_data_info
-      {
-         void* value;
-         void (*cleanup)(void*);
-         specific_data_info() :
-            value(0),
-            cleanup(0)
-            {}
-         specific_data_info(void* value, void (*cleanup)(void*)) :
-            value(value),
-            cleanup(cleanup)
-         {}
-      };
-      void* get_task_specific_data(unsigned slot);
-      void set_task_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-   }
-
-  class task_base : virtual public promise_base {
-    public:
-              void run(); 
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override;
-
-    protected:
-      ~task_base();
-      /// Task priority looks like unsupported feature.
-      uint64_t    _posted_num;
-      priority    _prio;
-      time_point  _when;
-      void        _set_active_context(context*);
-      context*    _active_context;
-      task_base*  _next;
-
-      // support for task-specific data
-      std::vector<detail::specific_data_info> *_task_specific_data;
-
-      friend void* detail::get_task_specific_data(unsigned slot);
-      friend void detail::set_task_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-
-      task_base(void* func);
-      // opaque internal / private data used by
-      // thread/thread_private
-      friend class thread;
-      friend class thread_d;
-      fwd<spin_lock,8> _spinlock;
-
-      // avoid rtti info for every possible functor...
-      void*         _promise_impl;
-      void*         _functor;
-      void          (*_destroy_functor)(void*);
-      void          (*_run_functor)(void*, void* );
-
-      void          run_impl(); 
-
-      void cleanup_task_specific_data();
-  };
+  class thread_detail;
+  class scheduled_task;
+  class thread;
 
   namespace detail {
-    template<typename T>
-    struct functor_destructor {
-      static void destroy( void* v ) { ((T*)v)->~T(); }
-    };
-    template<typename T>
-    struct functor_run {
-      static void run( void* functor, void* prom ) {
-        ((promise<decltype((*((T*)functor))())>*)prom)->set_value( (*((T*)functor))() );
-      }
-    };
-    template<typename T>
-    struct void_functor_run {
-      static void run( void* functor, void* prom ) {
-        (*((T*)functor))();
-        ((promise<void>*)prom)->set_value();
-      }
-    };
-  }
+     void thread_detail_cancel( thread&, scheduled_task* );
 
-  template<typename R,uint64_t FunctorSize=64>
-  class task : virtual public task_base, virtual public promise<R> {
-    public:
-      template<typename Functor>
-      task( Functor&& f, const char* desc ):promise_base(desc), task_base(&_functor), promise<R>(desc) {
-        typedef typename fc::deduce<Functor>::type FunctorType;
-        static_assert( sizeof(f) <= sizeof(_functor), "sizeof(Functor) is larger than FunctorSize" );
-        new ((char*)&_functor) FunctorType( fc::forward<Functor>(f) );
-        _destroy_functor = &detail::functor_destructor<FunctorType>::destroy;
+     struct task {
+         virtual ~task(){ }
+         virtual void exec() noexcept = 0;
+         task*  next = nullptr;
+     };
 
-        _promise_impl = static_cast<promise<R>*>(this);
-        _run_functor  = &detail::functor_run<FunctorType>::run;
-      }
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override { task_base::cancel(reason); }
+     template<typename R>
+     struct task_impl : public task {
+         template<typename Function>
+         task_impl( Function&& f ):pt( std::forward<Function>(f) ){}
 
-      aligned<FunctorSize> _functor;
-    private:
-      ~task(){}
+         virtual void exec() noexcept override { 
+            try { /// pt could throw future_error with future_errc::no_state
+              pt(); 
+            } catch ( ... ){}
+         }
+         boost::fibers::packaged_task<R()> pt;
+     };
+  } // namespace detail
+
+  class scheduled_task {
+     public:
+        scheduled_task( thread& th, time_point t ):executed(false),scheduled_thread(th),scheduled_time(t){}
+
+        virtual ~scheduled_task(){ }
+
+        /**
+         *  True if cancel succuss, false if the task already executed
+         */
+        virtual bool cancel() = 0;
+
+
+        time_point get_scheduled_time()const { return scheduled_time; }
+     protected:
+        std::atomic<bool> executed;
+        thread&           scheduled_thread;
+     private:
+        friend class thread_detail;
+        friend class thread;
+
+        virtual void exec() noexcept = 0;
+        time_point        scheduled_time;
   };
 
-  template<uint64_t FunctorSize>
-  class task<void,FunctorSize> : virtual public task_base, virtual public promise<void> {
+  template<typename R>
+  struct scheduled_task_impl : public scheduled_task {
     public:
-      template<typename Functor>
-      task( Functor&& f, const char* desc ):promise_base(desc), task_base(&_functor), promise<void>(desc) {
-        typedef typename fc::deduce<Functor>::type FunctorType;
-        static_assert( sizeof(f) <= sizeof(_functor), "sizeof(Functor) is larger than FunctorSize"  );
-        new ((char*)&_functor) FunctorType( fc::forward<Functor>(f) );
-        _destroy_functor = &detail::functor_destructor<FunctorType>::destroy;
+      template<typename Function>
+      scheduled_task_impl( Function&& f, thread& sch_th, time_point sch_time )
+      :scheduled_task(sch_th, sch_time),action( std::forward<Function>(f) ){}
 
-        _promise_impl = static_cast<promise<void>*>(this);
-        _run_functor  = &detail::void_functor_run<FunctorType>::run;
+      virtual bool cancel() override {
+          bool did_execute = executed.exchange(true, std::memory_order_seq_cst);
+          if( !did_execute ) {
+             prom.set_exception( std::make_exception_ptr( fc::canceled_exception() ) );
+             detail::thread_detail_cancel( scheduled_thread, this );
+          }
+          return !did_execute;
       }
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override { task_base::cancel(reason); }
 
-      aligned<FunctorSize> _functor;      
+      auto get_future() { return prom.get_future(); }
     private:
-      ~task(){}
+      virtual void exec() noexcept override { 
+         auto did_execute = executed.exchange(true, std::memory_order_seq_cst);
+         if( !did_execute ) {
+            try {
+               prom.set_value( action() );   
+            } catch ( ... ) {
+               prom.set_exception( std::current_exception() );
+            }
+         }
+      }
+      boost::fibers::promise<R> prom;
+      std::function<R()>        action;
   };
 
-}
+  template<>
+  class scheduled_task_impl<void> : public scheduled_task {
+     public:
+       template<typename Function>
+       scheduled_task_impl( Function&& f, thread& th, time_point sch_time )
+       :scheduled_task(th,sch_time),action( std::forward<Function>(f) ){}
+
+       virtual bool cancel() override {
+           bool did_execute = executed.exchange(true, std::memory_order_seq_cst);
+           if( !did_execute ) {
+              prom.set_exception( std::make_exception_ptr( fc::canceled_exception() ) );
+              detail::thread_detail_cancel( scheduled_thread, this );
+           }
+           return !did_execute;
+       }
+
+       auto get_future() { return prom.get_future(); }
+     private:
+       virtual void exec() noexcept override { 
+          auto did_execute = executed.exchange(true, std::memory_order_seq_cst);
+          if( !did_execute ) {
+             try {
+                action();
+                prom.set_value();   
+             } catch ( ... ) {
+                prom.set_exception( std::current_exception() );
+             }
+          }
+       }
+       boost::fibers::promise<void> prom;
+       std::function<void()>        action;
+  };
+  
+} // namespace fc

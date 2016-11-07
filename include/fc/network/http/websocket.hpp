@@ -7,6 +7,8 @@
 #include <fc/signals.hpp>
 
 namespace fc { namespace http {
+   using boost::signals2::signal;
+
    namespace detail {
       class websocket_server_impl;
       class websocket_tls_server_impl;

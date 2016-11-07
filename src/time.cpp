@@ -4,7 +4,6 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <sstream>
 #include <fc/string.hpp>
-#include <fc/io/sstream.hpp>
 #include <fc/exception/exception.hpp>
 
 namespace fc {
@@ -80,7 +79,7 @@ namespace fc {
        ago = " in the future";
        seconds_ago = -seconds_ago;
     }
-    stringstream result;
+    std::stringstream result;
     if (seconds_ago < 90)
     {
       result << seconds_ago << " second" << (seconds_ago > 1 ? "s" : "") << ago;

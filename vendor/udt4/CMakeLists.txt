@@ -24,3 +24,4 @@ set( udt_sources
    )
 
 add_library( udt ${udt_sources} )
+target_include_directories( udt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src" )

@@ -1,9 +1,12 @@
 #pragma once
 #include <fc/variant.hpp>
 #include <functional>
-#include <fc/thread/future.hpp>
+#include <boost/fiber/all.hpp>
 
 namespace fc { namespace rpc {
+   using boost::fibers::promise;
+   using boost::fibers::future;
+
    struct request
    {
       optional<uint64_t>  id;
@@ -48,10 +51,10 @@ namespace fc { namespace rpc {
          void on_unhandled( const std::function<variant(const string&,const variants&)>& unhandled );
 
       private:
-         uint64_t                                                   _next_id = 1;
-         std::unordered_map<uint64_t, fc::promise<variant>::ptr>    _awaiting;
-         std::unordered_map<std::string, method>                    _methods;
-         std::function<variant(const string&,const variants&)>                    _unhandled;
+         uint64_t                                                           _next_id = 1;
+         std::unordered_map<uint64_t, std::unique_ptr<promise<variant>>>    _awaiting;
+         std::unordered_map<std::string, method>                            _methods;
+         std::function<variant(const string&,const variants&)>              _unhandled;
    };
 } }  // namespace  fc::rpc
 

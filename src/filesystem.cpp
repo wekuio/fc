@@ -3,7 +3,6 @@
 #include <fc/exception/exception.hpp>
 #include <fc/fwd_impl.hpp>
 #include <fc/utility.hpp>
-#include <fc/io/fstream.hpp>
 
 #include <fc/utf8.hpp>
 #include <fc/variant.hpp>
@@ -368,7 +367,7 @@ namespace fc {
       }
       if (create)
       {
-         fc::ofstream ofs(*_path, fc::ofstream::out | fc::ofstream::binary);
+         std::ofstream ofs(_path->generic_string().c_str(), std::ofstream::out | std::ofstream::binary);
          ofs.close();
       }
    }

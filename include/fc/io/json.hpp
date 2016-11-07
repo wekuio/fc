@@ -4,8 +4,7 @@
 
 namespace fc
 {
-   class ostream;
-   class buffered_istream;
+   using std::ostream;
 
    /**
     *  Provides interface for json serialization.
@@ -32,8 +31,6 @@ namespace fc
          static ostream& to_stream( ostream& out, const variant& v, output_formatting format = stringify_large_ints_and_doubles );
          static ostream& to_stream( ostream& out, const variants& v, output_formatting format = stringify_large_ints_and_doubles );
          static ostream& to_stream( ostream& out, const variant_object& v, output_formatting format = stringify_large_ints_and_doubles );
-
-         static variant  from_stream( buffered_istream& in, parse_type ptype = legacy_parser );
 
          static variant  from_string( const string& utf8_str, parse_type ptype = legacy_parser );
          static variants variants_from_string( const string& utf8_str, parse_type ptype = legacy_parser );

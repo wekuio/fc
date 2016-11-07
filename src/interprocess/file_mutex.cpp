@@ -1,6 +1,5 @@
 #include <fc/interprocess/file_mutex.hpp>
 //#include <fc/thread/mutex.hpp>
-#include <fc/thread/mutex.hpp>
 #include <fc/filesystem.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
@@ -20,7 +19,7 @@ namespace fc {
           file_mutex_impl( const char* f )
           :_file_mutex( f ),_reader_count(0){}
 
-          fc::mutex  _write_lock;
+          boost::fibers::mutex _write_lock;
           bip::file_lock       _file_mutex;
           boost::atomic<int>   _reader_count;
      };
@@ -76,7 +75,7 @@ namespace fc {
   }
 
   void file_mutex::lock_shared() {
-    bip::scoped_lock< fc::mutex > lock( my->_write_lock );
+    bip::scoped_lock< boost::fibers::mutex > lock( my->_write_lock );
     if( 0 == my->_reader_count.fetch_add( 1, boost::memory_order_relaxed ) )
        my->_file_mutex.lock_sharable();
   }

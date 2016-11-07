@@ -3,7 +3,7 @@
 #include <fc/exception/exception.hpp>
 #include <fc/fwd_impl.hpp>
 
-#include <fc/io/fstream.hpp>
+//#include <fc/io/fstream.hpp>
 #include <fc/io/raw.hpp>
 
 #include <fc/log/logger.hpp>
@@ -20,6 +20,8 @@
 # include <windows.h>
 #endif
 
+#include <fstream>
+
 namespace fc {
 
 struct aes_encoder::impl 
@@ -30,6 +32,7 @@ struct aes_encoder::impl
 aes_encoder::aes_encoder()
 {
   static int init = init_openssl();
+  (void)init;
 }
 
 aes_encoder::~aes_encoder()
@@ -96,9 +99,10 @@ struct aes_decoder::impl
 };
 
 aes_decoder::aes_decoder()
-  {
+{
   static int init = init_openssl();
-  }
+  (void)init;
+}
 
 void aes_decoder::init( const fc::sha256& key, const fc::uint128& init_value )
 {
@@ -349,7 +353,7 @@ void              aes_save( const fc::path& file, const fc::sha512& key, std::ve
    fc::raw::pack( check_enc, cipher );
    auto check = check_enc.result();
 
-   fc::ofstream out(file);
+   std::ofstream out(file.generic_string().c_str());
    fc::raw::pack( out, check );
    fc::raw::pack( out, cipher );
 } FC_RETHROW_EXCEPTIONS( warn, "", ("file",file) ) }
@@ -361,7 +365,7 @@ std::vector<char> aes_load( const fc::path& file, const fc::sha512& key )
 { try {
    FC_ASSERT( fc::exists( file ) );
 
-   fc::ifstream in( file, fc::ifstream::binary );
+   std::ifstream in( file.generic_string().c_str(), std::ifstream::binary );
    fc::sha512 check;
    std::vector<char> cipher;
 

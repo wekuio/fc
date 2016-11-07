@@ -1,7 +1,6 @@
 #pragma once
 #include <fc/variant.hpp>
 #include <functional>
-#include <fc/thread/future.hpp>
 #include <fc/rpc/state.hpp>
 
 namespace fc { namespace rpc {
@@ -46,9 +45,9 @@ namespace fc { namespace rpc {
          void on_unhandled( const std::function<result_type(const string&,const params_type&)>& unhandled );
 
       private:
-         uint64_t                                                      _next_id = 1;
-         std::unordered_map<uint64_t, fc::promise<result_type>::ptr>   _awaiting;
-         std::unordered_map<std::string, method>                       _methods;
+         uint64_t                                                             _next_id = 1;
+         std::unordered_map<uint64_t, std::unique_ptr<promise<result_type>>>  _awaiting;
+         std::unordered_map<std::string, method>                              _methods;
          std::function<result_type(const string&,const params_type&)>         _unhandled;
    };
 } }  // namespace  fc::rpc
