@@ -249,7 +249,7 @@ namespace asio {
             void_promise_ptr p( new promise<void>() );
             auto fut = p->get_future();
             acc.async_accept( sock, boost::bind( fc::asio::detail::error_handler, std::move(p), _1 ) );
-            p.get();
+            fut.get();
         }
 
         /** @brief wraps boost::asio::socket::async_connect
