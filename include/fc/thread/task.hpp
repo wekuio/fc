@@ -12,20 +12,26 @@ namespace fc {
      void thread_detail_cancel( thread&, scheduled_task* );
 
      struct task {
+         task( const char* d ):desc(d){}
          virtual ~task(){ }
          virtual void exec() noexcept = 0;
          task*  next = nullptr;
+         const char* desc = "";
      };
 
      template<typename R>
      struct task_impl : public task {
          template<typename Function>
-         task_impl( Function&& f ):pt( std::forward<Function>(f) ){}
+         task_impl( Function&& f, const char* desc = "" ):task(desc),pt( std::forward<Function>(f) ){
+            idump((int64_t(this))(desc));
+         }
 
          virtual void exec() noexcept override { 
             try { /// pt could throw future_error with future_errc::no_state
+              idump(("start exec task") (int64_t(this))(desc));
               pt(); 
             } catch ( ... ){}
+            idump(("done exec task") (int64_t(this))(desc));
          }
          boost::fibers::packaged_task<R()> pt;
      };
@@ -33,7 +39,7 @@ namespace fc {
 
   class scheduled_task {
      public:
-        scheduled_task( thread& th, time_point t ):executed(false),scheduled_thread(th),scheduled_time(t){}
+        scheduled_task( thread& th, time_point t, const char* d = "" ):executed(false),scheduled_thread(th),scheduled_time(t),desc(d){}
 
         virtual ~scheduled_task(){ }
 
@@ -53,14 +59,15 @@ namespace fc {
 
         virtual void exec() noexcept = 0;
         time_point        scheduled_time;
+        const char*       desc = "";
   };
 
   template<typename R>
   struct scheduled_task_impl : public scheduled_task {
     public:
       template<typename Function>
-      scheduled_task_impl( Function&& f, thread& sch_th, time_point sch_time )
-      :scheduled_task(sch_th, sch_time),action( std::forward<Function>(f) ){}
+      scheduled_task_impl( Function&& f, thread& sch_th, time_point sch_time, const char* d = "" )
+      :scheduled_task(sch_th, sch_time, d),action( std::forward<Function>(f) ){}
 
       virtual bool cancel() override {
           bool did_execute = executed.exchange(true, std::memory_order_seq_cst);
@@ -91,8 +98,8 @@ namespace fc {
   class scheduled_task_impl<void> : public scheduled_task {
      public:
        template<typename Function>
-       scheduled_task_impl( Function&& f, thread& th, time_point sch_time )
-       :scheduled_task(th,sch_time),action( std::forward<Function>(f) ){}
+       scheduled_task_impl( Function&& f, thread& th, time_point sch_time, const char* d = "" )
+       :scheduled_task(th,sch_time,d),action( std::forward<Function>(f)){}
 
        virtual bool cancel() override {
            bool did_execute = executed.exchange(true, std::memory_order_seq_cst);

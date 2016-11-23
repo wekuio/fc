@@ -62,6 +62,7 @@ namespace fc {
 
 
         void async_task( detail::task* t ) {
+           idump((name));
            if( _done ) {
               delete t;
               throw std::runtime_error( "attempt to async task on thread that has quit" );
@@ -73,9 +74,9 @@ namespace fc {
 
            if( !stale_head ) 
            {
-               //dlog( "----grabbing ready mutex" );
+               dlog( "----grabbing ready mutex" );
                std::unique_lock<boost::fibers::mutex> lock(task_ready_mutex);
-               //dlog("--- got ready mutex, notify one" );
+               dlog("--- got ready mutex, notify one" );
                task_ready.notify_one();
            }
         }
@@ -120,30 +121,44 @@ namespace fc {
            while( !_done ) {
               move_newly_scheduled_tasks_to_task_queue();
               if( _queue || _scheduled.size() ) {
+
+#if 1
+                 boost::fibers::async( boost::fibers::launch::dispatch, [this](){ while( exec_next_task() ){} } );
+#else
+             //    elog( "creating new fiber... " );
+                 static int tmp = 0;
+                 ++tmp;
                  /**
                   *  First we execute the task, then delete it, and
                   *  finally look for other tasks to execute, and
                   *  exit when there are no more tasks in the queue
                   */
-                 boost::fibers::fiber fib( boost::fibers::launch::dispatch, [&](){
+                 boost::fibers::fiber fib( boost::fibers::launch::dispatch, [this,t=tmp](){
+                  //   wlog( "starting new fiber... ${d}", ("d",int64_t(t)) );
                      while( exec_next_task() ){}
+                  //   dlog( "exit fiber... ${d}", ("d",int64_t(t)) );
                  });
                  fib.detach();
+ #endif
 
               } else {
+                 //ilog( "grabbing task_read_mutex..." );
                  std::unique_lock<boost::fibers::mutex> lock(task_ready_mutex);
                  move_newly_scheduled_tasks_to_task_queue();
                  if( !(_queue || _scheduled.size()) ) {
                     if( !_scheduled.size() ) {
-                       //wlog( "waiting until next event" );
+              //         wlog( "waiting until next event" );
                        task_ready.wait( lock );
+               //        ilog( "wake up..." );
                     } else {
-                       wlog( "waiting for ${t} or until next event", ("t", (*_scheduled.begin())->get_scheduled_time() - fc::time_point::now() ));
+                //       wlog( "waiting for ${t} or until next event", ("t", (*_scheduled.begin())->get_scheduled_time() - fc::time_point::now() ));
                        task_ready.wait_until( lock, std::chrono::system_clock::time_point(std::chrono::microseconds( (*_scheduled.begin())->get_scheduled_time().time_since_epoch().count())) );
+                 //      wlog( "done waiting... " );
                     }
                  }
               }
            }
+    //       ilog( "exec done" );
            _running = false;
         }
 
@@ -236,7 +251,7 @@ namespace fc {
 
    void thread::quit() {
       if( !my->_done && my->_running )
-         async( [&](){  my->_done = true; } ).wait();
+         async( [&](){  my->_done = true; }, "thread::quit" ).wait();
    }
 
    bool thread::is_running()const {
@@ -254,17 +269,25 @@ namespace fc {
       //}).wait();
    }
    void thread::exec() { 
-      my->exec(); 
+      if( this != &current() ) elog( "exec called from wrong thread" );
+      else my->exec(); 
    }
 
    void thread::async_task( detail::task* t ) { 
       my->async_task(t); 
-      if( !my->_running ) {
-          my->_running = true;
+      if( !my->_running /*&& this == &current()*/ ) {
+         my->_running = true;
+         boost::fibers::async( boost::fibers::launch::post, [this](){ my->exec(); } );
+         /*
+         my->exec();
+
           boost::fibers::fiber fib( boost::fibers::launch::post, [&](){ 
+               elog( "STARTING FIBER to call exec()" );
                exec();
+               elog( "EXITING FIBER CALLING EXEC" );
           } );
           fib.detach();
+          */
       }
    }
    void thread::schedule( const std::shared_ptr<scheduled_task>& stask ) {

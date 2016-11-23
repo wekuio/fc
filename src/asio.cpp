@@ -3,6 +3,9 @@
 #include <boost/thread.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/exception/exception.hpp>
+#include <boost/fiber/all.hpp>
+#include "thread/asio/yield.hpp"
+#include "thread/asio/round_robin.hpp"
 
 namespace fc {
   namespace asio {
@@ -87,16 +90,18 @@ namespace fc {
     {
        boost::asio::io_service*          io;
        std::vector<boost::thread*>       asio_threads;
-       boost::asio::io_service::work*    the_work;
+
+       //boost::asio::io_service::work*    the_work;
 
        default_io_service_scope()
        {
             io           = new boost::asio::io_service();
-            the_work     = new boost::asio::io_service::work(*io);
             for( int i = 0; i < 1; ++i ) {
                asio_threads.push_back( new boost::thread( [=]()
                {
-                 fc::thread::current().set_name("asio");
+                 boost::fibers::use_scheduling_algorithm< boost::fibers::asio::round_robin > ( *io );
+                 fc::thread::current().set_name("asio" + fc::to_string(i));
+                 boost::fibers::async( boost::fibers::launch::post, [](){ fc::thread::current().exec(); } );
                  while (!io->stopped())
                  {
                    try
@@ -122,7 +127,7 @@ namespace fc {
 
        void cleanup()
        {
-          delete the_work;
+          //delete the_work;
           io->stop();
           for( auto asio_thread : asio_threads ) {
              asio_thread->join();

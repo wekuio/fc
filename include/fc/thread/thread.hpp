@@ -61,10 +61,10 @@ namespace fc {
        *  return a boost::fibers::future<R> depending upon the return type *R* of f()
        */
       template<typename Function>
-      auto async( Function&& f ) {
+      auto async( Function&& f, const char* desc = ""  ) {
          if( !is_running() ) 
             throw std::runtime_error( "unable to async task on quit thread" ); 
-         auto tsk = new detail::task_impl<decltype(f())>( std::forward<Function>(f) );    
+         auto tsk = new detail::task_impl<decltype(f())>( std::forward<Function>(f), desc );    
          auto fut = tsk->pt.get_future();
          async_task( tsk );
          return fut;
@@ -77,8 +77,8 @@ namespace fc {
        *  on the task will receive a fc::canceled_exception
        */
       template<typename Function>
-      auto schedule( Function&& f, time_point when ) {
-          auto result = std::make_shared< scheduled_task_impl< decltype(f()) > >( std::forward<Function>(f), std::ref(*this), when );
+      auto schedule( Function&& f, time_point when, const char* desc = "" ) {
+          auto result = std::make_shared< scheduled_task_impl< decltype(f()) > >( std::forward<Function>(f), std::ref(*this), when, desc );
           schedule( result );
           return result;
       }
@@ -96,8 +96,8 @@ namespace fc {
   };
 
   template<typename Function>
-  inline auto async( Function&& f ) {
-     return thread::current().async( std::forward<Function>(f) );
+  inline auto async( Function&& f, const char* desc = "" ) {
+     return thread::current().async( std::forward<Function>(f), desc );
   }
 
   inline void usleep( microseconds microsec ) {
