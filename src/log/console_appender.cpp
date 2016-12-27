@@ -1,6 +1,5 @@
 #include <fc/log/console_appender.hpp>
 #include <fc/log/log_message.hpp>
-#include <fc/thread/unique_lock.hpp>
 #include <fc/string.hpp>
 #include <fc/variant.hpp>
 #include <fc/reflect/variant.hpp>
@@ -118,7 +117,7 @@ namespace fc {
       fc::string message = fc::format_string( m.get_format(), m.get_data() );
       line << message;//.c_str();
 
-      fc::unique_lock<boost::mutex> lock(log_mutex());
+      std::unique_lock<boost::mutex> lock(log_mutex());
 
       print( line.str(), my->lc[m.get_context().get_log_level()] );
 

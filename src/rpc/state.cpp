@@ -1,5 +1,4 @@
 #include <fc/rpc/state.hpp>
-#include <fc/thread/thread.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/exception/exception.hpp>
 

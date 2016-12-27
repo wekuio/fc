@@ -1,5 +1,5 @@
-add_executable( thread_test thread_test.cpp )
-target_link_libraries( thread_test fc )
+#add_executable( thread_test thread_test.cpp )
+#target_link_libraries( thread_test fc )
 
 
 #add_executable( bip_lock bip_lock.cpp )
@@ -13,8 +13,8 @@ target_link_libraries( thread_test fc )
 #    target_link_libraries( blind fc )
 #endif()
 #
-add_executable( ntp_test all_tests.cpp network/ntp_test.cpp )
-target_link_libraries( ntp_test fc )
+#add_executable( ntp_test all_tests.cpp network/ntp_test.cpp )
+#target_link_libraries( ntp_test fc )
 #
 #add_executable( task_cancel_test all_tests.cpp thread/task_cancel.cpp )
 #target_link_libraries( task_cancel_test fc )
@@ -52,7 +52,7 @@ target_link_libraries( ntp_test fc )
 #add_executable( test_rate_limiting rate_limiting.cpp )
 #target_link_libraries( test_rate_limiting fc )
 
-add_executable( all_tests all_tests.cpp
+#add_executable( all_tests all_tests.cpp
 #                          compress/compress.cpp
 #                          crypto/aes_test.cpp
 #                          crypto/base_n_tests.cpp
@@ -63,10 +63,10 @@ add_executable( all_tests all_tests.cpp
 #                          crypto/rand_test.cpp
 #                          crypto/sha_tests.cpp
 #                          network/ntp_test.cpp
-                          network/http/websocket_test.cpp
+#                          network/http/websocket_test.cpp
 #                          thread/task_cancel.cpp
 #                          bloom_test.cpp
 #                          real128_test.cpp
 #                          utf8_test.cpp
-                          )
-target_link_libraries( all_tests fc )
+#                          )
+#target_link_libraries( all_tests fc )

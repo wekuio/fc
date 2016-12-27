@@ -34,7 +34,7 @@ endif()
 SET (ORIGINAL_LIB_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 SET(BOOST_COMPONENTS)
-LIST(APPEND BOOST_COMPONENTS thread fiber date_time system filesystem program_options signals serialization chrono unit_test_framework context locale iostreams)
+LIST(APPEND BOOST_COMPONENTS thread fiber date_time system filesystem program_options serialization chrono unit_test_framework context locale iostreams)
 SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
 
 IF( ECC_IMPL STREQUAL openssl )
@@ -153,7 +153,7 @@ find_package(OpenSSL REQUIRED)
 
 set(RAPIDJSON_USE_SSE2 ON)
 set(RAPIDJSON_USE_SSE42 ON)
-find_package(RapidJSON REQUIRED)
+#find_package(RapidJSON REQUIRED)
 
 
 set( CMAKE_FIND_LIBRARY_SUFFIXES ${ORIGINAL_LIB_SUFFIXES} )
@@ -166,45 +166,22 @@ set( fc_sources
      src/variant.cpp
      src/exception.cpp
      src/variant_object.cpp
-     src/thread/thread.cpp
-#     src/thread/thread_specific.cpp
-#     src/thread/future.cpp
-#     src/thread/task.cpp
-     src/thread/spin_lock.cpp
-     src/thread/spin_yield_lock.cpp
-#     src/thread/mutex.cpp
-#     src/thread/non_preemptable_scope_check.cpp
-     src/asio.cpp
      src/string.cpp
      src/shared_ptr.cpp
      src/time.cpp
      src/utf8.cpp
-     src/io/iostream.cpp
      src/io/datastream.cpp
-#     src/io/buffered_iostream.cpp
-#     src/io/fstream.cpp
-#     src/io/sstream.cpp
      src/io/json.cpp
      src/io/varint.cpp
-#     src/io/console.cpp
      src/filesystem.cpp
-#     src/interprocess/process.cpp
-     src/interprocess/signals.cpp
      src/interprocess/file_mapping.cpp
      src/interprocess/mmap_struct.cpp
-     src/interprocess/file_mutex.cpp
-#     src/rpc/cli.cpp
-#     src/rpc/http_api.cpp
-#     src/rpc/json_connection.cpp
      src/rpc/state.cpp
      src/rpc/bstate.cpp
-#     src/rpc/websocket_api.cpp
      src/log/log_message.cpp
      src/log/logger.cpp
      src/log/appender.cpp
      src/log/console_appender.cpp
-#     src/log/file_appender.cpp
-#     src/log/gelf_appender.cpp
      src/log/logger_config.cpp
      src/crypto/_digest_common.cpp
      src/crypto/openssl.cpp
@@ -219,6 +196,7 @@ set( fc_sources
      src/crypto/hex.cpp
      src/crypto/sha1.cpp
      src/crypto/ripemd160.cpp
+     src/crypto/equihash.cpp
      src/crypto/sha256.cpp
      src/crypto/sha224.cpp
      src/crypto/sha512.cpp
@@ -228,18 +206,8 @@ set( fc_sources
      ${ECC_REST}
      src/crypto/elliptic_${ECC_IMPL}.cpp
      src/crypto/rand.cpp
-     src/network/tcp_socket.cpp
-     src/network/udp_socket.cpp
-#     src/network/udt_socket.cpp
-#     src/network/http/http_connection.cpp
-#     src/network/http/http_server.cpp
-     src/network/http/websocket.cpp
-     src/network/ntp.cpp
      src/network/ip.cpp
-#     src/network/rate_limiting.cpp
-     src/network/resolve.cpp
      src/network/url.cpp
-#     src/network/gntp.cpp
      src/compress/smaz.cpp
      src/compress/zlib.cpp
      vendor/cyoencode-1.0.2/src/CyoDecode.c
@@ -255,9 +223,6 @@ set( sources
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/git_revision.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cpp" @ONLY)
 list(APPEND sources "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cpp")
 list(APPEND sources ${fc_headers})
-
-add_subdirectory( vendor/websocketpp )
-add_subdirectory( vendor/udt4 )
 
 setup_library( fc SOURCES ${sources} LIBRARY_TYPE STATIC DONT_INSTALL_LIBRARY )
 
@@ -356,20 +321,14 @@ target_include_directories(fc
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/boost_1.51/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cyoencode-1.0.2/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/udt4/src
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/websocketpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/secp256k1-zkp
   )
 
-#target_link_libraries( fc PUBLIC udt ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${BZIP2_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library} ${ECC_LIB} )
 IF(NOT WIN32)
   set(LINK_USR_LOCAL_LIB -L/usr/local/lib)
 ENDIF()
-target_link_libraries( fc PUBLIC ${LINK_USR_LOCAL_LIB} udt ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${BZIP2_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library} ${readline_libraries} ${ECC_LIB} )
-
-if(MSVC)
-  set_source_files_properties( src/network/http/websocket.cpp PROPERTIES COMPILE_FLAGS "/bigobj" )
-endif(MSVC)
+target_link_libraries( fc PUBLIC ${LINK_USR_LOCAL_LIB} ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${BZIP2_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library} ${readline_libraries} ${ECC_LIB} )
 
 
 IF(NOT Boost_UNIT_TEST_FRAMEWORK_LIBRARY MATCHES "\\.(a|lib)$")
@@ -381,7 +340,9 @@ ENDIF(MSVC)
 ENDIF()
 
 include_directories( vendor/websocketpp )
+include_directories( vendor/equihash/include )
 
+add_subdirectory(vendor/equihash)
 add_subdirectory(tests)
 
 if(WIN32)

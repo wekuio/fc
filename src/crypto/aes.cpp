@@ -8,7 +8,6 @@
 
 #include <fc/log/logger.hpp>
 
-#include <fc/thread/thread.hpp>
 #include <boost/thread/mutex.hpp>
 #include <openssl/opensslconf.h>
 #ifndef OPENSSL_THREADS
@@ -20,7 +19,9 @@
 # include <windows.h>
 #endif
 
+#include <thread>
 #include <fstream>
+#include <functional>
 
 namespace fc {
 
@@ -403,7 +404,8 @@ unsigned long openssl_thread_config::get_thread_id()
 #ifdef _WIN32
   return (unsigned long)::GetCurrentThreadId();
 #else
-  return (unsigned long)(&fc::thread::current());    // TODO: should expose boost thread id
+  return std::hash<std::thread::id>()(std::this_thread::get_id());
+//  return (unsigned long)(&fc::thread::current());    // TODO: should expose boost thread id
 #endif
 }
 
