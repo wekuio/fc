@@ -7,6 +7,7 @@
 
 namespace fc
 {
+   const string& get_thread_name();
    namespace detail
    {
       class log_context_impl
@@ -50,9 +51,7 @@ namespace fc
       my->line        = line;
       my->method      = method;
       my->timestamp   = time_point::now();
-      // my->thread_name = fc::thread::current().name();
-      //const char* current_task_desc = fc::thread::current().current_task_desc();
-      //my->task_name   = current_task_desc ? current_task_desc : "?unnamed?";
+      my->thread_name = fc::get_thread_name();
    }
 
    log_context::log_context( const variant& v )
