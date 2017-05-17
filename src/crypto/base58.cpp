@@ -64,76 +64,83 @@ public:
     bool operator!() { return (pctx == NULL); }
 };
 
+/* RAII wrapper for BIGNUM instance */
+class CBigNumBase
+{
+protected:
+    BIGNUM* pbn;
+
+public:
+    CBigNumBase()
+        : pbn(BN_new())
+    {
+        if (pbn == NULL)
+            throw bignum_error("CBigNum : BN_new() returned NULL");
+    }
+
+    ~CBigNumBase()
+    {
+        BN_clear_free(pbn);
+    }
+};
 
 /** C++ wrapper for BIGNUM (OpenSSL bignum) */
-class CBigNum : public BIGNUM
+class CBigNum : public CBigNumBase
 {
 public:
     CBigNum()
-    {
-        BN_init(this);
-    }
+    {}
 
     CBigNum(const CBigNum& b)
     {
-        BN_init(this);
-        if (!BN_copy(this, &b))
-        {
-            BN_clear_free(this);
+        if (!BN_copy(pbn, &b))
             throw bignum_error("CBigNum::CBigNum(const CBigNum&) : BN_copy failed");
-        }
     }
 
     CBigNum& operator=(const CBigNum& b)
     {
-        if (!BN_copy(this, &b))
+        if (!BN_copy(pbn, &b))
             throw bignum_error("CBigNum::operator= : BN_copy failed");
         return (*this);
     }
 
-    ~CBigNum()
-    {
-        BN_clear_free(this);
-    }
-
     //CBigNum(char n) is not portable.  Use 'signed char' or 'unsigned char'.
-    CBigNum(signed char n)      { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
-    CBigNum(short n)            { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
-    CBigNum(int n)              { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
+    CBigNum(signed char n)      { if (n >= 0) setulong(n); else setint64(n); }
+    CBigNum(short n)            { if (n >= 0) setulong(n); else setint64(n); }
+    CBigNum(int n)              { if (n >= 0) setulong(n); else setint64(n); }
     //CBigNum(long n)             { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
-    CBigNum(int64_t n)          { BN_init(this); setint64(n); }
-    CBigNum(unsigned char n)    { BN_init(this); setulong(n); }
-    CBigNum(unsigned short n)   { BN_init(this); setulong(n); }
-    CBigNum(unsigned int n)     { BN_init(this); setulong(n); }
+    CBigNum(int64_t n)          { setint64(n); }
+    CBigNum(unsigned char n)    { setulong(n); }
+    CBigNum(unsigned short n)   { setulong(n); }
+    CBigNum(unsigned int n)     { setulong(n); }
     //CBigNum(unsigned long n)    { BN_init(this); setulong(n); }
-    CBigNum(uint64_t n)           { BN_init(this); setuint64(n); }
+    CBigNum(uint64_t n)           { setuint64(n); }
 
     explicit CBigNum(const std::vector<unsigned char>& vch)
     {
-        BN_init(this);
         setvch(vch);
     }
 
     void setulong(unsigned long n)
     {
-        if (!BN_set_word(this, n))
+        if (!BN_set_word(pbn, n))
             throw bignum_error("CBigNum conversion from unsigned long : BN_set_word failed");
     }
 
     unsigned long getulong() const
     {
-        return BN_get_word(this);
+        return BN_get_word(pbn);
     }
 
     unsigned int getuint() const
     {
-        return BN_get_word(this);
+        return BN_get_word(pbn);
     }
 
     int getint() const
     {
-        unsigned long n = BN_get_word(this);
-        if (!BN_is_negative(this))
+        unsigned long n = BN_get_word(pbn);
+        if (!BN_is_negative(pbn))
             return (n > (unsigned long)std::numeric_limits<int>::max() ? std::numeric_limits<int>::max() : n);
         else
             return (n > (unsigned long)std::numeric_limits<int>::max() ? std::numeric_limits<int>::min() : -(int)n);
@@ -171,7 +178,7 @@ public:
         pch[1] = (nSize >> 16) & 0xff;
         pch[2] = (nSize >> 8) & 0xff;
         pch[3] = (nSize) & 0xff;
-        BN_mpi2bn(pch, p - pch, this);
+        BN_mpi2bn(pch, p - pch, pbn);
     }
 
     void setuint64(uint64_t n)
@@ -198,7 +205,7 @@ public:
         pch[1] = (nSize >> 16) & 0xff;
         pch[2] = (nSize >> 8) & 0xff;
         pch[3] = (nSize) & 0xff;
-        BN_mpi2bn(pch, p - pch, this);
+        BN_mpi2bn(pch, p - pch, pbn);
     }
 
 
@@ -214,16 +221,16 @@ public:
         vch2[3] = (nSize >> 0) & 0xff;
         // swap data to big endian
         reverse_copy(vch.begin(), vch.end(), vch2.begin() + 4);
-        BN_mpi2bn(&vch2[0], vch2.size(), this);
+        BN_mpi2bn(&vch2[0], vch2.size(), pbn);
     }
 
     std::vector<unsigned char> getvch() const
     {
-        unsigned int nSize = BN_bn2mpi(this, NULL);
+        unsigned int nSize = BN_bn2mpi(pbn, NULL);
         if (nSize <= 4)
             return std::vector<unsigned char>();
         std::vector<unsigned char> vch(nSize);
-        BN_bn2mpi(this, &vch[0]);
+        BN_bn2mpi(pbn, &vch[0]);
         vch.erase(vch.begin(), vch.begin() + 4);
         reverse(vch.begin(), vch.end());
         return vch;
@@ -237,16 +244,16 @@ public:
         if (nSize >= 1) vch[4] = (nCompact >> 16) & 0xff;
         if (nSize >= 2) vch[5] = (nCompact >> 8) & 0xff;
         if (nSize >= 3) vch[6] = (nCompact >> 0) & 0xff;
-        BN_mpi2bn(&vch[0], vch.size(), this);
+        BN_mpi2bn(&vch[0], vch.size(), pbn);
         return *this;
     }
 
     unsigned int GetCompact() const
     {
-        unsigned int nSize = BN_bn2mpi(this, NULL);
+        unsigned int nSize = BN_bn2mpi(pbn, NULL);
         std::vector<unsigned char> vch(nSize);
         nSize -= 4;
-        BN_bn2mpi(this, &vch[0]);
+        BN_bn2mpi(pbn, &vch[0]);
         unsigned int nCompact = nSize << 24;
         if (nSize >= 1) nCompact |= (vch[4] << 16);
         if (nSize >= 2) nCompact |= (vch[5] << 8);
@@ -304,7 +311,7 @@ public:
             unsigned int c = rem.getulong();
             str += "0123456789abcdef"[c];
         }
-        if (BN_is_negative(this))
+        if (BN_is_negative(pbn))
             str += "-";
         reverse(str.begin(), str.end());
         return str;
@@ -319,12 +326,12 @@ public:
 
     bool operator!() const
     {
-        return BN_is_zero(this);
+        return BN_is_zero(pbn);
     }
 
     CBigNum& operator+=(const CBigNum& b)
     {
-        if (!BN_add(this, this, &b))
+        if (!BN_add(pbn, pbn, &b))
             throw bignum_error("CBigNum::operator+= : BN_add failed");
         return *this;
     }
@@ -338,7 +345,7 @@ public:
     CBigNum& operator*=(const CBigNum& b)
     {
         CAutoBN_CTX pctx;
-        if (!BN_mul(this, this, &b, pctx))
+        if (!BN_mul(pbn, pbn, &b, pctx))
             throw bignum_error("CBigNum::operator*= : BN_mul failed");
         return *this;
     }
@@ -357,7 +364,7 @@ public:
 
     CBigNum& operator<<=(unsigned int shift)
     {
-        if (!BN_lshift(this, this, shift))
+        if (!BN_lshift(pbn, pbn, shift))
             throw bignum_error("CBigNum:operator<<= : BN_lshift failed");
         return *this;
     }
@@ -368,13 +375,13 @@ public:
         //   if built on ubuntu 9.04 or 9.10, probably depends on version of openssl
         CBigNum a = 1;
         a <<= shift;
-        if (BN_cmp(&a, this) > 0)
+        if (BN_cmp(&a, pbn) > 0)
         {
             *this = 0;
             return *this;
         }
 
-        if (!BN_rshift(this, this, shift))
+        if (!BN_rshift(pbn, pbn, shift))
             throw bignum_error("CBigNum:operator>>= : BN_rshift failed");
         return *this;
     }
@@ -383,7 +390,7 @@ public:
     CBigNum& operator++()
     {
         // prefix operator
-        if (!BN_add(this, this, BN_value_one()))
+        if (!BN_add(pbn, pbn, BN_value_one()))
             throw bignum_error("CBigNum::operator++ : BN_add failed");
         return *this;
     }
@@ -400,7 +407,7 @@ public:
     {
         // prefix operator
         CBigNum r;
-        if (!BN_sub(&r, this, BN_value_one()))
+        if (!BN_sub(&r, pbn, BN_value_one()))
             throw bignum_error("CBigNum::operator-- : BN_sub failed");
         *this = r;
         return *this;
@@ -414,6 +421,8 @@ public:
         return ret;
     }
 
+    BIGNUM* operator&() { return pbn; }
+    const BIGNUM* operator&() const { return pbn; }
 
     friend inline const CBigNum operator-(const CBigNum& a, const CBigNum& b);
     friend inline const CBigNum operator/(const CBigNum& a, const CBigNum& b);
