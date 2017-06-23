@@ -31,6 +31,7 @@ namespace fc { namespace rpc {
 
          fc::http::websocket_connection&  _connection;
          fc::rpc::state                   _rpc_state;
+         std::shared_ptr< fc::thread >    _thread;
    };
 
 } } // namespace fc::rpc

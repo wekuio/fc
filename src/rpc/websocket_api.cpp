@@ -3,9 +3,7 @@
 
 namespace fc { namespace rpc {
 
-websocket_api_connection::~websocket_api_connection()
-{
-}
+websocket_api_connection::~websocket_api_connection() {}
 
 websocket_api_connection::websocket_api_connection( fc::http::websocket_connection& c )
    : _connection(c)
@@ -48,6 +46,8 @@ websocket_api_connection::websocket_api_connection( fc::http::websocket_connecti
    {
       return this->receive_call( 0, method_name, args );
    } );
+   
+   _thread = std::make_shared< fc::thread >();
 
    _connection.on_message_handler( [&]( const std::string& msg ){ on_message(msg,true); } );
    _connection.on_http_handler( [&]( const std::string& msg ){ return on_message(msg,false); } );
@@ -98,28 +98,41 @@ std::string websocket_api_connection::on_message(
          {
             try
             {
-#ifdef LOG_LONG_API
                auto start = time_point::now();
-#endif
 
-               auto result = _rpc_state.local_call( call.method, call.params );
+               _thread->async( [call, this]()
+               {
+                  if( call.id )
+                     return response( *call.id, _rpc_state.local_call( call.method, call.params ) );
+                  else
+                     return response();
+               }).on_complete( [call, send_message, start, t_count, this]( const response& r, const exception_ptr& e )
+               {
+                  idump( (t_count) );
+                  auto end = time_point::now();
 
 #ifdef LOG_LONG_API
-               auto end = time_point::now();
-
-               if( end - start > fc::milliseconds( LOG_LONG_API_MAX_MS ) )
-                  elog( "API call execution time limit exceeded. method: ${m} params: ${p} time: ${t}", ("m",call.method)("p",call.params)("t", end - start) );
-               else if( end - start > fc::milliseconds( LOG_LONG_API_WARN_MS ) )
-                  wlog( "API call execution time nearing limit. method: ${m} params: ${p} time: ${t}", ("m",call.method)("p",call.params)("t", end - start) );
+                  if( end - start > fc::milliseconds( LOG_LONG_API_MAX_MS ) )
+                     elog( "API call execution time limit exceeded. method: ${m} params: ${p} time: ${t}", ("m",call.method)("p",call.params)("t", end - start) );
+                  else if( end - start > fc::milliseconds( LOG_LONG_API_WARN_MS ) )
+                     wlog( "API call execution time nearing limit. method: ${m} params: ${p} time: ${t}", ("m",call.method)("p",call.params)("t", end - start) );
 #endif
 
-               if( call.id )
-               {
-                  auto reply = fc::json::to_string( response( *call.id, result ) );
-                  if( send_message )
-                     _connection.send_message( reply );
-                  return reply;
-               }
+                  if( call.id )
+                  {
+                     if( e )
+                     {
+                        auto reply = fc::json::to_string( response( *call.id, error_object{ 1, e->to_detail_string(), fc::variant(*e) } ) );
+                        if( send_message )
+                           _connection.send_message( reply );
+                     }
+
+                     auto reply = fc::json::to_string( r );
+                     if( send_message )
+                        _connection.send_message( reply );
+                  }
+               });
+               return string();
             }
             FC_CAPTURE_AND_RETHROW( (call.method)(call.params) )
          }
