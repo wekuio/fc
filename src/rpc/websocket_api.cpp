@@ -46,7 +46,7 @@ websocket_api_connection::websocket_api_connection( fc::http::websocket_connecti
    {
       return this->receive_call( 0, method_name, args );
    } );
-   
+
    _thread = std::make_shared< fc::thread >();
 
    _connection.on_message_handler( [&]( const std::string& msg ){ on_message(msg,true); } );
@@ -106,9 +106,8 @@ std::string websocket_api_connection::on_message(
                      return response( *call.id, _rpc_state.local_call( call.method, call.params ) );
                   else
                      return response();
-               }).on_complete( [call, send_message, start, t_count, this]( const response& r, const exception_ptr& e )
+               }).on_complete( [call, send_message, start, this]( const response& r, const exception_ptr& e )
                {
-                  idump( (t_count) );
                   auto end = time_point::now();
 
 #ifdef LOG_LONG_API
