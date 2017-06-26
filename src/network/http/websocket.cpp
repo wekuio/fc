@@ -199,7 +199,7 @@ namespace fc { namespace http {
                        std::shared_ptr<websocket_connection> con = current_con->second;
                        ++_pending_messages;
                        auto f = fc::async([this,con,payload](){ if( _pending_messages ) --_pending_messages; con->on_message( payload ); });
-                       if( _pending_messages > 100 ) 
+                       if( _pending_messages > 100 )
                          f.wait();
                     }).wait();
                });

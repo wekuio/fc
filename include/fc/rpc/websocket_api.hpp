@@ -25,8 +25,15 @@ namespace fc { namespace rpc {
             variants args = variants() ) override;
 
       protected:
-         std::string on_message(
+         std::string on_http(
+            const std::string& message );
+         void on_rpc(
             const std::string& message,
+            bool send_message = true );
+
+      private:
+         future< response > on_message(
+            const fc::rpc::request& call,
             bool send_message = true );
 
          fc::http::websocket_connection&  _connection;
