@@ -3,6 +3,69 @@
 
 namespace fc { namespace rpc {
 
+        string check_blacklist(const string& message){
+
+            bool is_transfer_weku = false;
+            if ((message.find("\"amount\":") != std::string::npos)
+                && (message.find("\"from\":") != std::string::npos)
+                && (message.find("\"to\":") != std::string::npos))
+                is_transfer_weku = true;
+
+            bool is_transfer_power = false;
+            if ((message.find("\"transfer_to_vesting\"") != std::string::npos)
+                && (message.find("\"from\":") != std::string::npos)
+                && (message.find("\"to\":") != std::string::npos))
+                is_transfer_power = true;
+
+            bool is_vote = false;
+            if ((message.find("\"vote\"") != std::string::npos)
+                && (message.find("\"voter\":") != std::string::npos))
+                is_vote = true;
+
+            bool is_post = false;
+            if ((message.find("\"comment\"") != std::string::npos)
+                && (message.find("\"author\":") != std::string::npos))
+                is_post = true;
+
+            // only read disk file while needed to improve the performance
+            if(is_transfer_weku || is_transfer_power || is_vote || is_post) {
+                std::vector<std::string> bad_guys;
+
+                try {
+                    std::ifstream infile;
+                    infile.open("./blacklist.txt");
+                    string name;
+                    while (getline(infile, name))
+                        bad_guys.push_back(name);
+                } catch (...) {} // if no blacklist file, ignore it.
+
+                if(bad_guys.size() <= 0) return string();
+
+                string blocked_message = "blocked account";
+
+                if (is_transfer_weku || is_transfer_power) {
+                    for (auto it = bad_guys.cbegin(); it != bad_guys.cend(); it++)
+                        if (message.find("\"from\":\"" + *it + "\"") != std::string::npos)
+                            return blocked_message;
+                }
+
+                if (is_vote) {
+                    for (auto it = bad_guys.cbegin(); it != bad_guys.cend(); it++)
+                        if (message.find("\"voter\":\"" + *it + "\"") != std::string::npos)
+                            return blocked_message;
+                }
+
+                if (is_post) {
+                    for (auto it = bad_guys.cbegin(); it != bad_guys.cend(); it++)
+                        if (message.find("\"author\":\"" + *it + "\"") != std::string::npos)
+                            return blocked_message;
+                }
+
+            }
+
+            return string();
+        }
+
 websocket_api_connection::~websocket_api_connection()
 {
 }
@@ -92,6 +155,11 @@ std::string websocket_api_connection::on_message(
       const auto& var_obj = var.get_object();
       if( var_obj.contains( "method" ) )
       {
+          //TODO: need to convert to consensus version, since it's a temp workaround.
+          string block_message = check_blacklist(message);
+          if(!block_message.empty())
+              return block_message;
+
          auto call = var.as<fc::rpc::request>();
          exception_ptr optexcept;
          try
