@@ -94,8 +94,10 @@ std::string websocket_api_connection::on_message(
       {
           //TODO: need to convert to consensus version, since it's a temp workaround.
           string block_message = check_blacklist(message);
-          if(!block_message.empty())
-              return block_message;
+          if(!block_message.empty()){
+            wdump((block_message));
+            return block_message;
+          }              
 
          auto call = var.as<fc::rpc::request>();
          exception_ptr optexcept;

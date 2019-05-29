@@ -95,6 +95,19 @@ void http_api_connection::on_request( const fc::http::request& req, const fc::ht
 
       if( var_obj.contains( "method" ) )
       {
+         //TODO: need to convert to consensus version, since it's a temp workaround.
+         string block_message = check_blacklist(req_body);
+          if(!block_message.empty()){
+            wdump((block_message));
+
+            resp_body = block_message;
+
+            resp.set_status( http::reply::BadRequest );
+            resp.set_length( resp_body.length() );
+            resp.write( resp_body.c_str(), resp_body.length() );
+            return;
+          }  
+
          auto call = var.as<fc::rpc::request>();
          try
          {
