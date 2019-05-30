@@ -3,8 +3,10 @@
 #include <functional>
 #include <fc/thread/future.hpp>
 #include <fstream>
+#include <regex>
 
 namespace fc { namespace rpc {
+    using std::regex;
    struct request
    {
       optional<uint64_t>  id;
@@ -58,26 +60,32 @@ namespace fc { namespace rpc {
    string check_blacklist(const string& message){
 
             bool is_transfer_weku = false;
-            if ((message.find("\"amount\":") != std::string::npos)
-                && (message.find("\"from\":") != std::string::npos)
-                && (message.find("\"to\":") != std::string::npos))
+            if(std::regex_search(message, 
+                regex("[\"|']amount[\"|'].*[\"|']from[\"|']:.*[\"|']to[\"|']:",
+                std::regex_constants::icase))){
                 is_transfer_weku = true;
+            }
 
             bool is_transfer_power = false;
-            if ((message.find("\"transfer_to_vesting\"") != std::string::npos)
-                && (message.find("\"from\":") != std::string::npos)
-                && (message.find("\"to\":") != std::string::npos))
+            if(std::regex_search(message, 
+                regex("[\"|']transfer_to_vesting[\"|'].*[\"|']from[\"|']:.*[\"|']to[\"|']:",
+                std::regex_constants::icase))){
                 is_transfer_power = true;
+            }
 
             bool is_vote = false;
-            if ((message.find("\"vote\"") != std::string::npos)
-                && (message.find("\"voter\":") != std::string::npos))
+            if(std::regex_search(message, 
+                regex("[\"|']vote[\"|'].*[\"|']voter[\"|']:",
+                std::regex_constants::icase))){
                 is_vote = true;
+            }           
 
             bool is_post = false;
-            if ((message.find("\"comment\"") != std::string::npos)
-                && (message.find("\"author\":") != std::string::npos))
+            if(std::regex_search(message, 
+                regex("[\"|']comment[\"|'].*[\"|']author[\"|']:",
+                std::regex_constants::icase))){
                 is_post = true;
+            }
 
             // only read disk file while needed to improve the performance
             if(is_transfer_weku || is_transfer_power || is_vote || is_post) {
@@ -97,19 +105,25 @@ namespace fc { namespace rpc {
 
                 if (is_transfer_weku || is_transfer_power) {
                     for (auto it = bad_guys.cbegin(); it != bad_guys.cend(); it++)
-                        if (message.find("\"from\":\"" + *it + "\"") != std::string::npos)
+                        if(std::regex_search(message, 
+                            regex("[\"|']from[\"|']:.*[\"|']" + *it + "[\"|']",
+                            std::regex_constants::icase)))
                             return blocked_message;
                 }
 
                 if (is_vote) {
                     for (auto it = bad_guys.cbegin(); it != bad_guys.cend(); it++)
-                        if (message.find("\"voter\":\"" + *it + "\"") != std::string::npos)
+                        if(std::regex_search(message, 
+                            regex("[\"|']voter[\"|']:.*[\"|']" + *it + "[\"|']",
+                            std::regex_constants::icase)))
                             return blocked_message;
                 }
 
                 if (is_post) {
                     for (auto it = bad_guys.cbegin(); it != bad_guys.cend(); it++)
-                        if (message.find("\"author\":\"" + *it + "\"") != std::string::npos)
+                        if(std::regex_search(message, 
+                            regex("[\"|']author[\"|']:.*[\"|']" + *it + "[\"|']",
+                            std::regex_constants::icase)))
                             return blocked_message;
                 }
 
