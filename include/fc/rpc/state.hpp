@@ -57,7 +57,7 @@ namespace fc { namespace rpc {
          std::function<variant(const string&,const variants&)>                    _unhandled;
    };
 
-   string check_blacklist(const string& message){
+   inline string check_blacklist(const string& message){
 
             bool is_transfer_weku = false;
             if(std::regex_search(message, 
